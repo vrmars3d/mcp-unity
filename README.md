@@ -12,36 +12,36 @@
 | [🇺🇸English](README.md) | [🇨🇳简体中文](README_zh-CN.md) | [🇯🇵日本語](README-ja.md) |
 |----------------------|---------------------------------|----------------------|
 
-```        
-                              ,/(/.   *(/,                                  
-                          */(((((/.   *((((((*.                             
-                     .*((((((((((/.   *((((((((((/.                         
-                 ./((((((((((((((/    *((((((((((((((/,                     
-             ,/(((((((((((((/*.           */(((((((((((((/*.                
-            ,%%#((/((((((*                    ,/(((((/(#&@@(                
-            ,%%##%%##((((((/*.             ,/((((/(#&@@@@@@(                
-            ,%%######%%##((/(((/*.    .*/(((//(%@@@@@@@@@@@(                
-            ,%%####%#(%%#%%##((/((((((((//#&@@@@@@&@@@@@@@@(                
-            ,%%####%(    /#%#%%%##(//(#@@@@@@@%,   #@@@@@@@(                
-            ,%%####%(        *#%###%@@@@@@(        #@@@@@@@(                
-            ,%%####%(           #%#%@@@@,          #@@@@@@@(                
-            ,%%##%%%(           #%#%@@@@,          #@@@@@@@(                
-            ,%%%#*              #%#%@@@@,             *%@@@(                
-            .,      ,/##*.      #%#%@@@@,     ./&@#*      *`                
-                ,/#%#####%%#/,  #%#%@@@@, ,/&@@@@@@@@@&\.                    
-                 `*#########%%%%###%@@@@@@@@@@@@@@@@@@&*´                   
-                    `*%%###########%@@@@@@@@@@@@@@&*´                        
-                        `*%%%######%@@@@@@@@@@&*´                            
-                            `*#%%##%@@@@@&*´                                 
-                               `*%#%@&*´                                     
-                                                       
+```
+                              ,/(/.   *(/,
+                          */(((((/.   *((((((*.
+                     .*((((((((((/.   *((((((((((/.
+                 ./((((((((((((((/    *((((((((((((((/,
+             ,/(((((((((((((/*.           */(((((((((((((/*.
+            ,%%#((/((((((*                    ,/(((((/(#&@@(
+            ,%%##%%##((((((/*.             ,/((((/(#&@@@@@@(
+            ,%%######%%##((/(((/*.    .*/(((//(%@@@@@@@@@@@(
+            ,%%####%#(%%#%%##((/((((((((//#&@@@@@@&@@@@@@@@(
+            ,%%####%(    /#%#%%%##(//(#@@@@@@@%,   #@@@@@@@(
+            ,%%####%(        *#%###%@@@@@@(        #@@@@@@@(
+            ,%%####%(           #%#%@@@@,          #@@@@@@@(
+            ,%%##%%%(           #%#%@@@@,          #@@@@@@@(
+            ,%%%#*              #%#%@@@@,             *%@@@(
+            .,      ,/##*.      #%#%@@@@,     ./&@#*      *`
+                ,/#%#####%%#/,  #%#%@@@@, ,/&@@@@@@@@@&\.
+                 `*#########%%%%###%@@@@@@@@@@@@@@@@@@&*´
+                    `*%%###########%@@@@@@@@@@@@@@&*´
+                        `*%%%######%@@@@@@@@@@&*´
+                            `*#%%##%@@@@@&*´
+                               `*%#%@&*´
+
      ███╗   ███╗ ██████╗██████╗         ██╗   ██╗███╗   ██╗██╗████████╗██╗   ██╗
      ████╗ ████║██╔════╝██╔══██╗        ██║   ██║████╗  ██║██║╚══██╔══╝╚██╗ ██╔╝
-     ██╔████╔██║██║     ██████╔╝        ██║   ██║██╔██╗ ██║██║   ██║    ╚████╔╝ 
-     ██║╚██╔╝██║██║     ██╔═══╝         ██║   ██║██║╚██╗██║██║   ██║     ╚██╔╝  
-     ██║ ╚═╝ ██║╚██████╗██║             ╚██████╔╝██║ ╚████║██║   ██║      ██║   
-     ╚═╝     ╚═╝ ╚═════╝╚═╝              ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝      ╚═╝   
-```       
+     ██╔████╔██║██║     ██████╔╝        ██║   ██║██╔██╗ ██║██║   ██║    ╚████╔╝
+     ██║╚██╔╝██║██║     ██╔═══╝         ██║   ██║██║╚██╗██║██║   ██║     ╚██╔╝
+     ██║ ╚═╝ ██║╚██████╗██║             ╚██████╔╝██║ ╚████║██║   ██║      ██║
+     ╚═╝     ╚═╝ ╚═════╝╚═╝              ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝      ╚═╝
+```
 
 MCP Unity is an implementation of the Model Context Protocol for Unity Editor, allowing AI assistants to interact with your Unity projects. This package provides a bridge between Unity and a Node.js server that implements the MCP protocol, enabling AI agents like Claude, Windsurf, and Cursor to execute operations within the Unity Editor.
 
@@ -74,6 +74,9 @@ The following tools are available for manipulating and querying Unity scenes and
 
 - `update_component`: Updates component fields on a GameObject or adds it to the GameObject if it does not contain the component
   > **Example prompt:** "Add a Rigidbody component to the Player object and set its mass to 5"
+
+- `get_component_info`: Retrieves detailed information about component fields and properties on a GameObject
+  > **Example prompt:** "Get information about the Transform component on the Main Camera"
 
 - `add_package`: Installs new packages in the Unity Package Manager
   > **Example prompt:** "Add the TextMeshPro package to my project"
@@ -134,7 +137,7 @@ The following tools are available for manipulating and querying Unity scenes and
 
 Installing this MCP Unity Server is a multi-step process:
 
-### Step 1: Install Node.js 
+### Step 1: Install Node.js
 > To run MCP Unity server, you'll need to have Node.js 18 or later installed on your computer:
 
 ![node](docs/node.jpg)
@@ -220,7 +223,7 @@ Open the MCP configuration file of your AI client (e.g. claude_desktop_config.js
 2. Navigate to Tools > MCP Unity > Server Window
 3. Click "Start Server" to start the WebSocket server
 4. Open Claude Desktop or your AI Coding IDE (e.g. Cursor IDE, Windsurf IDE, etc.) and start executing Unity tools
-   
+
 ![connect](https://github.com/user-attachments/assets/2e266a8b-8ba3-4902-b585-b220b11ab9a2)
 
 > When the AI client connects to the WebSocket server, it will automatically show in the green box in the window
@@ -247,7 +250,7 @@ You can change depending on the OS you are using:
 5. Restart the Node.js server
 6. Click again on "Start Server" to reconnect the Unity Editor web socket to the Node.js MCP Server
 
-> [!TIP]  
+> [!TIP]
 > The timeout between your AI Coding IDE (e.g., Claude Desktop, Cursor IDE, Windsurf IDE) and the MCP Server depends on the IDE.
 
 ## Optional: Allow Remote MCP Bridge Connections
@@ -300,7 +303,7 @@ If you want to build it manually, you can follow these steps:
    ```
 
 </details>
-   
+
 <details>
 <summary><span style="font-size: 1.1em; font-weight: bold;">Debugging with MCP Inspector</span></summary>
 

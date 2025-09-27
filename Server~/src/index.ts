@@ -11,6 +11,7 @@ import { registerRunTestsTool } from './tools/runTestsTool.js';
 import { registerSendConsoleLogTool } from './tools/sendConsoleLogTool.js';
 import { registerGetConsoleLogsTool } from './tools/getConsoleLogsTool.js';
 import { registerUpdateComponentTool } from './tools/updateComponentTool.js';
+import { registerGetComponentInfoTool } from './tools/getComponentInfoTool.js';
 import { registerAddAssetToSceneTool } from './tools/addAssetToSceneTool.js';
 import { registerUpdateGameObjectTool } from './tools/updateGameObjectTool.js';
 import { registerCreatePrefabTool } from './tools/createPrefabTool.js';
@@ -57,6 +58,7 @@ registerRunTestsTool(server, mcpUnity, toolLogger);
 registerSendConsoleLogTool(server, mcpUnity, toolLogger);
 registerGetConsoleLogsTool(server, mcpUnity, toolLogger);
 registerUpdateComponentTool(server, mcpUnity, toolLogger);
+registerGetComponentInfoTool(server, mcpUnity, toolLogger);
 registerAddAssetToSceneTool(server, mcpUnity, toolLogger);
 registerUpdateGameObjectTool(server, mcpUnity, toolLogger);
 registerCreatePrefabTool(server, mcpUnity, toolLogger);
@@ -81,19 +83,19 @@ async function startServer() {
   try {
     // Initialize STDIO transport for MCP client communication
     const stdioTransport = new StdioServerTransport();
-    
+
     // Connect the server to the transport
     await server.connect(stdioTransport);
 
     serverLogger.info('MCP Server started');
-    
+
     // Get the client name from the MCP server
     const clientName = server.server.getClientVersion()?.name || 'Unknown MCP Client';
     serverLogger.info(`Connected MCP client: ${clientName}`);
-    
+
     // Start Unity Bridge connection with client name in headers
     await mcpUnity.start(clientName);
-    
+
   } catch (error) {
     serverLogger.error('Failed to start server', error);
     process.exit(1);
