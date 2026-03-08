@@ -10,7 +10,6 @@
 | [🇺🇸英文](README.md) | [🇨🇳简体中文](README_zh-CN.md) | [🇯🇵日本語](README-ja.md) |
 |----------------------|---------------------------------|----------------------|
 
-
 ```                                                                        
                               ,/(/.   *(/,                                  
                           */(((((/.   *((((((*.                             
@@ -43,10 +42,6 @@
 ```       
 
 MCP Unity 是 Model Context Protocol 在 Unity 编辑器中的实现，允许 AI 助手与您的 Unity 项目交互。这个包提供了 Unity 和实现 MCP 协议的 Node.js 服务器之间的桥梁，使 Claude、Windsurf 和 Cursor 等 AI 代理能够在 Unity 编辑器中执行操作。
-
-<a href="https://glama.ai/mcp/servers/@CoderGamester/mcp-unity">
-  <img width="400" height="200" src="https://glama.ai/mcp/servers/@CoderGamester/mcp-unity/badge" alt="Unity MCP server" />
-</a>
 
 ## 功能
 
@@ -87,6 +82,69 @@ MCP Unity 通过将 Unity `Library/PackedCache` 文件夹添加到您的工作�
 - `create_prefab`: 创建预制体，并可选择添加 MonoBehaviour 脚本和设置序列化字段值
   > **示例提示:** "从 'PlayerController' 脚本创建一个名为 'Player' 的预制体"
 
+- `recompile_scripts`: 重新编译 Unity 项目中的所有脚本
+  > **示例提示:** "重新编译我 Unity 项目中的所有脚本"
+
+- `create_scene`: 创建新场景并保存到指定路径
+  > **示例提示:** "在 Scenes 文件夹中创建一个名为 'Level1' 的新场景"
+
+- `load_scene`: 通过路径或名称加载场景，支持可选的叠加加载
+  > **示例提示:** "加载 MainMenu 场景"
+
+- `delete_scene`: 通过路径或名称删除场景并从构建设置中移除
+  > **示例提示:** "从我的项目中删除旧的 TestScene"
+
+- `get_gameobject`: 获取特定 GameObject 的详细信息，包括所有组件
+  > **示例提示:** "获取 Player GameObject 的详细信息"
+
+- `get_console_logs`: 获取 Unity 控制台日志，支持分页
+  > **示例提示:** "显示 Unity 控制台最近的 20 条错误日志"
+
+- `save_scene`: 保存当前活动场景，支持另存为新路径
+  > **示例提示:** "保存当前场景" 或 "将场景另存为 'Assets/Scenes/Level2.unity'"
+
+- `get_scene_info`: 获取活动场景的信息，包括名称、路径、脏标记状态和所有已加载的场景
+  > **示例提示:** "我的项目中当前加载了哪些场景？"
+
+- `unload_scene`: 从层次结构中卸载场景（不删除场景资产）
+  > **示例提示:** "从层次结构中卸载 UI 场景"
+
+- `duplicate_gameobject`: 复制场景中的 GameObject，支持可选的重命名和重新设置父级
+  > **示例提示:** "复制 Enemy 预制体 5 次，并将它们重命名为 Enemy_1 到 Enemy_5"
+
+- `delete_gameobject`: 从场景中删除 GameObject
+  > **示例提示:** "从场景中删除旧的 Player 对象"
+
+- `reparent_gameobject`: 更改层次结构中 GameObject 的父级
+  > **示例提示:** "将 HealthBar 对象移动为 UI Canvas 的子对象"
+
+- `move_gameobject`: 将 GameObject 移动到新位置（本地或世界空间）
+  > **示例提示:** "将 Player 对象移动到世界空间位置 (10, 0, 5)"
+
+- `rotate_gameobject`: 将 GameObject 旋转到新角度（本地或世界空间，欧拉角或四元数）
+  > **示例提示:** "将 Camera 沿 Y 轴旋转 45 度"
+
+- `scale_gameobject`: 将 GameObject 缩放到新的本地比例
+  > **示例提示:** "将 Enemy 对象放大到两倍大小"
+
+- `set_transform`: 在单个操作中设置 GameObject 的位置、旋转和缩放
+  > **示例提示:** "将 Cube 的位置设置为 (0, 5, 0)，旋转为 (0, 90, 0)，缩放为 (2, 2, 2)"
+
+- `create_material`: 使用指定的着色器创建新材质并保存到项目中
+  > **示例提示:** "使用 URP Lit 着色器创建一个名为 'EnemyMaterial' 的红色材质"
+
+- `assign_material`: 将材质分配给 GameObject 的渲染器组件
+  > **示例提示:** "将 'EnemyMaterial' 分配给 Enemy GameObject"
+
+- `modify_material`: 修改现有材质的属性（颜色、浮点数、纹理）
+  > **示例提示:** "将 'EnemyMaterial' 的颜色改为蓝色，并将金属度设置为 0.8"
+
+- `get_material_info`: 获取材质的详细信息，包括着色器和所有属性
+  > **示例提示:** "显示 'PlayerMaterial' 的所有属性"
+
+- `batch_execute`: 在单个批处理请求中执行多个工具操作，减少往返次数并支持原子操作，失败时可选回滚
+  > **示例提示:** "在单个批处理操作中创建 10 个名为 Enemy_1 到 Enemy_10 的空 GameObject"
+
 ### MCP 服务器资源
 
 - `unity://menu-items`: 获取 Unity 编辑器中所有可用的菜单项列表，以方便 `execute_menu_item` 工具
@@ -111,7 +169,7 @@ MCP Unity 通过将 Unity `Library/PackedCache` 文件夹添加到您的工作�
   > **示例提示:** "列出我 Unity 项目中所有可用的测试"
 
 ## 要求
-- Unity 2022.3 或更高版本 - 用于[安装服务器](#install-server)
+- Unity 6 或更高版本 - 用于[安装服务器](#install-server)
 - Node.js 18 或更高版本 - 用于[启动服务器](#start-server)
 - npm 9 或更高版本 - 用于[调试服务器](#debug-server)
 
@@ -383,10 +441,13 @@ MCP Unity 为开发人员、美术和项目经理提供了多个优势：
 <summary><span style="font-size: 1.1em; font-weight: bold;">当前哪些 MCP 主机和 IDE 支持 MCP Unity？</span></summary>
 
 已知兼容的平台包括：
--  Windsurf
 -  Cursor
--  GitHub Copilot
+-  Windsurf
 -  Claude Desktop
+-  Claude Code
+-  Codex CLI
+-  GitHub Copilot
+-  Google Antigravity
 
 </details>
 

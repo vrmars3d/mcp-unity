@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
+using System.Reflection;
 using McpUnity.Unity;
 using UnityEngine;
 using UnityEditor;
@@ -17,6 +18,10 @@ namespace McpUnity.Utils
     /// </summary>
     public static class McpUtils
     {
+
+        // Cached result for Multiplayer Play Mode clone detection
+        private static bool? _isMultiplayerPlayModeClone;
+        
         /// <summary>
         /// Generates the MCP configuration JSON to setup the Unity MCP server in different AI Clients
         /// </summary>
@@ -35,13 +40,13 @@ namespace McpUnity.Utils
                     }
                 }
             };
-            
+
             // Initialize string writer with proper indentation
             var stringWriter = new StringWriter();
             using (var jsonWriter = new JsonTextWriter(stringWriter))
             {
                 jsonWriter.Formatting = Formatting.Indented;
-                
+
                 // Set indentation character and count
                 if (useTabsIndentation)
                 {
@@ -53,13 +58,28 @@ namespace McpUnity.Utils
                     jsonWriter.IndentChar = ' ';
                     jsonWriter.Indentation = 2;
                 }
-                
+
                 // Serialize directly to the JsonTextWriter
                 var serializer = new JsonSerializer();
                 serializer.Serialize(jsonWriter, config);
             }
-            
+
             return stringWriter.ToString().Replace("\\", "/").Replace("//", "/");
+        }
+
+        /// <summary>
+        /// Generates the MCP configuration TOML to setup the Unity MCP server in TOML-based AI Clients (e.g., Codex CLI)
+        /// </summary>
+        /// <returns>The TOML configuration string for mcp-unity server</returns>
+        public static string GenerateMcpConfigToml()
+        {
+            string indexJsPath = Path.Combine(GetServerPath(), "build", "index.js").Replace("\\", "/");
+            
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("[mcp_servers.mcp-unity]");
+            sb.AppendLine("command = \"node\"");
+            sb.AppendLine($"args = [\"{indexJsPath}\"]");
+            return sb.ToString();
         }
 
         /// <summary>
@@ -77,31 +97,19 @@ namespace McpUnity.Utils
 
                 return CleanPathPrefix(serverPath);
             }
-            
-            var assets = AssetDatabase.FindAssets("tsconfig");
 
-            if(assets.Length == 1)
-            {
-                // Convert relative path to absolute path
-                var relativePath = AssetDatabase.GUIDToAssetPath(assets[0]);
-                string fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", relativePath));
+            string[] dirs = System.IO.Directory.GetDirectories("Assets", "Server~", System.IO.SearchOption.AllDirectories);
 
-                return CleanPathPrefix(fullPath);
-            }
-            if (assets.Length > 0)
+            for (int n=0; n<dirs.Length; n++)
             {
-                foreach (var assetJson in assets)
+                string tsconfigPath = System.IO.Path.Combine(dirs[n], "tsconfig.json");
+                if (System.IO.File.Exists(tsconfigPath))
                 {
-                    string relativePath = AssetDatabase.GUIDToAssetPath(assetJson);
-                    string fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", relativePath));
-
-                    if(Path.GetFileName(Path.GetDirectoryName(fullPath)) == "Server~")
-                    {
-                        return CleanPathPrefix(Path.GetDirectoryName(fullPath));
-                    }
+                    string fullPath = System.IO.Path.GetFullPath(dirs[n]);
+                    return CleanPathPrefix(fullPath);
                 }
             }
-            
+
             // If we get here, we couldn't find the server path
             var errorString = "[MCP Unity] Could not locate Server directory. Please check the installation of the MCP Unity package.";
 
@@ -122,6 +130,50 @@ namespace McpUnity.Utils
                 return path.Substring(1);
             }
             return path;
+        }
+
+        /// <summary>
+        /// Encodes a file path for use in file:// URLs by replacing spaces with %20.
+        /// </summary>
+        /// <param name="path">The path to encode.</param>
+        /// <returns>The encoded path suitable for file:// URLs.</returns>
+        public static string EncodePathForFileUrl(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+                return path;
+
+            return path.Replace(" ", "%20");
+        }
+
+        /// <summary>
+        /// Validates the server path and returns true if valid.
+        /// </summary>
+        /// <param name="serverPath">The server path to validate.</param>
+        /// <returns>True if path is valid and usable, false if path has critical issues.</returns>
+        public static bool ValidateServerPath(string serverPath)
+        {
+            if (string.IsNullOrEmpty(serverPath))
+            {
+                Debug.LogError("[MCP Unity] Server path is null or empty. Cannot validate.");
+                return false;
+            }
+
+            // Verify the path exists
+            if (!Directory.Exists(serverPath))
+            {
+                Debug.LogError($"[MCP Unity] Server path does not exist: {serverPath}");
+                return false;
+            }
+
+            // Verify required files exist
+            string packageJsonPath = Path.Combine(serverPath, "package.json");
+            if (!File.Exists(packageJsonPath))
+            {
+                Debug.LogError($"[MCP Unity] package.json not found in server path: {serverPath}");
+                return false;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -161,12 +213,30 @@ namespace McpUnity.Utils
         }
 
         /// <summary>
+        /// Adds the MCP configuration to the Google Antigravity config file
+        /// </summary>
+        public static bool AddToAntigravityConfig(bool useTabsIndentation)
+        {
+            string configFilePath = GetAntigravityConfigPath();
+            return AddToConfigFile(configFilePath, useTabsIndentation, "Google Antigravity");
+        }
+
+        /// <summary>
         /// Adds the MCP configuration to the GitHub Copilot config file
         /// </summary>
         public static bool AddToGitHubCopilotConfig(bool useTabsIndentation)
         {
             string configFilePath = GetGitHubCopilotConfigPath();
             return AddToConfigFile(configFilePath, useTabsIndentation, "GitHub Copilot");
+        }
+
+        /// <summary>
+        /// Adds the MCP configuration to the Codex CLI config file (TOML format)
+        /// </summary>
+        public static bool AddToCodexCliConfig(bool useTabsIndentation)
+        {
+            string configFilePath = GetCodexCliConfigPath();
+            return AddToTomlConfigFile(configFilePath, "Codex CLI");
         }
 
         /// <summary>
@@ -340,6 +410,37 @@ namespace McpUnity.Utils
         }
 
         /// <summary>
+        /// Gets the path to the Google Antigravity MCP config file based on the current OS
+        /// </summary>
+        /// <returns>The path to the Google Antigravity MCP config file</returns>
+        private static string GetAntigravityConfigPath()
+        {
+            // Base path depends on the OS
+            string basePath;
+
+            if (Application.platform == RuntimePlatform.WindowsEditor)
+            {
+                // Windows: %USERPROFILE%/.gemini/antigravity/mcp_config.json
+                basePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini", "antigravity");
+            }
+            else if (Application.platform == RuntimePlatform.OSXEditor)
+            {
+                // macOS: ~/Library/Application Support/.gemini/antigravity/mcp_config.json
+                string homeDir = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+                basePath = Path.Combine(homeDir, "Library", "Application Support", ".gemini", "antigravity");
+            }
+            else
+            {
+                // Unsupported platform
+                Debug.LogError("Unsupported platform for Google Antigravity MCP config");
+                return null;
+            }
+
+            // Return the path to the mcp_config.json file
+            return Path.Combine(basePath, "mcp_config.json");
+        }
+
+        /// <summary>
         /// Gets the path to the GitHub Copilot config file (workspace .vscode/mcp.json)
         /// </summary>
         /// <returns>The path to the GitHub Copilot config file</returns>
@@ -349,6 +450,137 @@ namespace McpUnity.Utils
             string projectRoot = Directory.GetParent(Application.dataPath).FullName;
             string vscodeDir = Path.Combine(projectRoot, ".vscode");
             return Path.Combine(vscodeDir, "mcp.json");
+        }
+
+        /// <summary>
+        /// Gets the path to the Codex CLI config file based on the current OS
+        /// </summary>
+        /// <returns>The path to the Codex CLI config file</returns>
+        private static string GetCodexCliConfigPath()
+        {
+            // Codex CLI uses ~/.codex/config.toml on all platforms
+            string homeDir;
+            
+            if (Application.platform == RuntimePlatform.WindowsEditor)
+            {
+                // Windows: %USERPROFILE%\.codex\config.toml
+                homeDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            }
+            else if (Application.platform == RuntimePlatform.OSXEditor)
+            {
+                // macOS: ~/.codex/config.toml
+                homeDir = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+            }
+            else
+            {
+                Debug.LogError("Unsupported platform for Codex CLI config");
+                return null;
+            }
+            
+            return Path.Combine(homeDir, ".codex", "config.toml");
+        }
+
+        /// <summary>
+        /// Common method to add MCP configuration to a TOML-based config file
+        /// </summary>
+        /// <param name="configFilePath">Path to the TOML config file</param>
+        /// <param name="productName">Name of the product (for error messages)</param>
+        /// <returns>True if successfully added the config, false otherwise</returns>
+        private static bool AddToTomlConfigFile(string configFilePath, string productName)
+        {
+            if (string.IsNullOrEmpty(configFilePath))
+            {
+                Debug.LogError($"{productName} config file path not found. Please make sure {productName} is installed.");
+                return false;
+            }
+            
+            try
+            {
+                // Generate fresh MCP config TOML
+                string mcpServerConfig = "\n" + GenerateMcpConfigToml();
+                
+                string directoryPath = Path.GetDirectoryName(configFilePath);
+                
+                // Check if the config file exists
+                if (File.Exists(configFilePath))
+                {
+                    return TryMergeMcpServersToml(configFilePath, mcpServerConfig, productName);
+                }
+                else if (Directory.Exists(directoryPath))
+                {
+                    // Create a new config file
+                    File.WriteAllText(configFilePath, mcpServerConfig.TrimStart());
+                    return true;
+                }
+                else
+                {
+                    // Create directory and file
+                    Directory.CreateDirectory(directoryPath);
+                    File.WriteAllText(configFilePath, mcpServerConfig.TrimStart());
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"Failed to add MCP configuration to {productName}: {ex}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Helper to merge mcp_servers.mcp-unity section into an existing TOML config file.
+        /// </summary>
+        /// <param name="configFilePath">Path to the existing TOML config file</param>
+        /// <param name="mcpServerConfig">The new mcp-unity TOML configuration to merge</param>
+        /// <param name="productName">Name of the product (for error messages)</param>
+        /// <returns>True if successfully merged, false otherwise</returns>
+        private static bool TryMergeMcpServersToml(string configFilePath, string mcpServerConfig, string productName)
+        {
+            string existingContent = File.ReadAllText(configFilePath);
+            
+            // Check if mcp-unity is already configured
+            if (existingContent.Contains("[mcp_servers.mcp-unity]"))
+            {
+                // Update existing configuration
+                // Find the start of the mcp-unity section
+                int startIndex = existingContent.IndexOf("[mcp_servers.mcp-unity]", StringComparison.Ordinal);
+                
+                // Find the end of this section (next section header or end of file)
+                int endIndex = FindNextTomlSectionIndex(existingContent, startIndex + 23);
+                
+                string newContent = existingContent.Substring(0, startIndex) + 
+                                  mcpServerConfig.TrimStart() + 
+                                  existingContent.Substring(endIndex);
+                File.WriteAllText(configFilePath, newContent);
+            }
+            else
+            {
+                // Append the new configuration
+                File.AppendAllText(configFilePath, mcpServerConfig);
+            }
+            
+            return true;
+        }
+
+        /// <summary>
+        /// Finds the index of the next TOML section header starting from the given position.
+        /// Returns the length of the content if no next section is found.
+        /// </summary>
+        /// <param name="content">The TOML content to search</param>
+        /// <param name="startPosition">The position to start searching from</param>
+        /// <returns>The index of the next section header, or content length if not found</returns>
+        private static int FindNextTomlSectionIndex(string content, int startPosition)
+        {
+            // Look for patterns like [section] or [section.subsection]
+            int nextSectionIndex = content.IndexOf("\n[", startPosition, StringComparison.Ordinal);
+            
+            if (nextSectionIndex == -1)
+            {
+                // No more sections, return end of content
+                return content.Length;
+            }
+            
+            return nextSectionIndex;
         }
 
         /// <summary>
@@ -386,13 +618,23 @@ namespace McpUnity.Utils
             }
             else // macOS / Linux
             {
-                // Fallback to /bin/bash to find 'npm' in PATH
-                startInfo.FileName = "/bin/bash";
-                startInfo.Arguments = $"-c \"npm {arguments}\"";
+                string userShell = Environment.GetEnvironmentVariable("SHELL") ?? "/bin/bash";
+                string shellName = Path.GetFileName(userShell);
+                
+                // Source rc file to init version managers (nvm, fnm, volta) - GUI apps don't inherit shell env
+                string rcFile = shellName == "zsh" ? ".zshrc" : ".bashrc";
+                
+                startInfo.FileName = userShell;
+                startInfo.Arguments = $"-c \"source ~/{rcFile} 2>/dev/null || true; npm {arguments}\"";
 
-                // Ensure PATH includes common npm locations and current PATH
+                // Fallback PATH for common npm locations
                 string currentPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-                string extraPaths = "/usr/local/bin:/opt/homebrew/bin";
+                string homeDir = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+                string extraPaths = string.Join(":",
+                    "/usr/local/bin",
+                    "/opt/homebrew/bin",
+                    $"{homeDir}/.nvm/versions/node/default/bin"  // nvm default alias
+                );
                 startInfo.EnvironmentVariables["PATH"] = $"{extraPaths}:{currentPath}";
             }
 
@@ -494,6 +736,164 @@ namespace McpUnity.Utils
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Detects if the current Unity Editor instance is a Multiplayer Play Mode clone (additional editor).
+        /// Uses multiple detection methods in order of reliability:
+        /// 1. Command line arguments (-name Player2/3/4 indicates clone)
+        /// 2. Reflection on CurrentPlayer.IsMainEditor property
+        /// 3. Library path heuristics
+        /// Returns false if not a clone or detection fails (allowing normal operation).
+        /// </summary>
+        /// <returns>True if running as a clone instance, false if main editor or detection fails</returns>
+        public static bool IsMultiplayerPlayModeClone()
+        {
+            // Return cached result if available
+            if (_isMultiplayerPlayModeClone.HasValue)
+            {
+                return _isMultiplayerPlayModeClone.Value;
+            }
+
+            try
+            {
+                // Method 1: Check command line arguments (most reliable)
+                // Unity MPPM passes "-name PlayerX" where X > 1 for clones
+                string[] args = Environment.GetCommandLineArgs();
+                for (int i = 0; i < args.Length - 1; i++)
+                {
+                    if (args[i] == "-name" || args[i] == "--name")
+                    {
+                        string playerName = args[i + 1];
+                        // Player1 is the main editor, Player2/3/4 are clones
+                        if (playerName.StartsWith("Player") && playerName != "Player1")
+                        {
+                            _isMultiplayerPlayModeClone = true;
+                            return true;
+                        }
+                        // Found -name argument but it's Player1 (main editor)
+                        if (playerName == "Player1")
+                        {
+                            _isMultiplayerPlayModeClone = false;
+                            return false;
+                        }
+                    }
+                }
+
+                // Method 2: Check for MPPM-specific command line flags
+                foreach (string arg in args)
+                {
+                    // Check for clone-specific flags that Unity might pass
+                    if (arg.Contains("mppm") && arg.Contains("clone"))
+                    {
+                        _isMultiplayerPlayModeClone = true;
+                        return true;
+                    }
+                }
+
+                // Method 3: Try reflection on CurrentPlayer.IsMainEditor (MPPM 1.4+)
+                Assembly mppmAssembly = null;
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    string assemblyName = assembly.GetName().Name;
+                    if (assemblyName == "Unity.Multiplayer.Playmode" || 
+                        assemblyName == "Unity.Multiplayer.Playmode.Editor")
+                    {
+                        mppmAssembly = assembly;
+                        break;
+                    }
+                }
+
+                if (mppmAssembly != null)
+                {
+                    // Try to find CurrentPlayer class
+                    Type currentPlayerType = mppmAssembly.GetType("Unity.Multiplayer.Playmode.CurrentPlayer");
+                    if (currentPlayerType != null)
+                    {
+                        // Try IsMainEditor property
+                        PropertyInfo isMainEditorProperty = currentPlayerType.GetProperty(
+                            "IsMainEditor", 
+                            BindingFlags.Public | BindingFlags.Static);
+                        
+                        if (isMainEditorProperty != null)
+                        {
+                            bool isMainEditor = (bool)isMainEditorProperty.GetValue(null);
+                            _isMultiplayerPlayModeClone = !isMainEditor;
+                            return !isMainEditor;
+                        }
+                    }
+                }
+
+                // Method 4: Check if Unity's Library path indicates a VP (Virtual Player) subfolder
+                // Clone instances may use a modified library path
+                string libraryPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Library"));
+                if (IsVirtualPlayerLibraryPath(libraryPath))
+                {
+                    // Looks like we're in a virtual player's library folder
+                    _isMultiplayerPlayModeClone = true;
+                    return true;
+                }
+
+                // Default: not a clone (or couldn't detect MPPM)
+                _isMultiplayerPlayModeClone = false;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                // On any error, assume not a clone to avoid breaking functionality
+                Debug.LogWarning($"[MCP Unity] Error detecting Multiplayer Play Mode clone status: {ex.Message}");
+                _isMultiplayerPlayModeClone = false;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the path contains a "Library" segment followed by a "VP" segment.
+        /// This avoids false positives from names like "MVP" or "CountyLibraryApp".
+        /// </summary>
+        private static bool IsVirtualPlayerLibraryPath(string libraryPath)
+        {
+            if (string.IsNullOrEmpty(libraryPath))
+            {
+                return false;
+            }
+
+            string normalizedPath = libraryPath.Replace('\\', '/');
+            string[] segments = normalizedPath.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+
+            int libraryIndex = -1;
+            for (int i = 0; i < segments.Length; i++)
+            {
+                if (string.Equals(segments[i], "Library", StringComparison.OrdinalIgnoreCase))
+                {
+                    libraryIndex = i;
+                    break;
+                }
+            }
+
+            if (libraryIndex < 0)
+            {
+                return false;
+            }
+
+            for (int i = libraryIndex + 1; i < segments.Length; i++)
+            {
+                if (string.Equals(segments[i], "VP", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Resets the cached Multiplayer Play Mode clone detection result.
+        /// Useful for testing or when the state might have changed.
+        /// </summary>
+        public static void ResetMultiplayerPlayModeCloneCache()
+        {
+            _isMultiplayerPlayModeClone = null;
         }
     }
 }

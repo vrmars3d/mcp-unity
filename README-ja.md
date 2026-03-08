@@ -43,10 +43,6 @@
 
 MCP Unityは、Unityエディター向けのModel Context Protocolの実装であり、AIアシスタントがUnityプロジェクトと対話できるようにします。このパッケージは、UnityとMCPプロトコルを実装するNode.jsサーバー間のブリッジを提供し、Claude、Windsurf、CursorなどのAIエージェントがUnityエディター内で操作を実行できるようにします。
 
-<a href="https://glama.ai/mcp/servers/@CoderGamester/mcp-unity">
-  <img width="400" height="200" src="https://glama.ai/mcp/servers/@CoderGamester/mcp-unity/badge" alt="Unity MCPサーバー" />
-</a>
-
 ## 機能
 
 ### IDE統合 - パッケージキャッシュアクセス
@@ -86,6 +82,69 @@ MCP Unityは、Unityの`Library/PackedCache`フォルダーをワークスペー
 - `create_prefab`: プレハブを作成し、オプションでMonoBehaviourスクリプトとシリアライズされたフィールド値を設定
   > **例:** "'PlayerController'スクリプトから'Player'という名前のプレハブを作成"
 
+- `recompile_scripts`: Unityプロジェクト内のすべてのスクリプトを再コンパイル
+  > **例:** "Unityプロジェクト内のすべてのスクリプトを再コンパイル"
+
+- `create_scene`: 新しいシーンを作成し、指定されたパスに保存
+  > **例:** "Scenesフォルダに'Level1'という新しいシーンを作成"
+
+- `load_scene`: パスまたは名前でシーンをロード（オプションで追加ロード可能）
+  > **例:** "MainMenuシーンをロード"
+
+- `delete_scene`: パスまたは名前でシーンを削除し、ビルド設定から削除
+  > **例:** "プロジェクトから古いTestSceneを削除"
+
+- `get_gameobject`: すべてのコンポーネントを含む特定のGameObjectの詳細情報を取得
+  > **例:** "Player GameObjectの詳細を取得"
+
+- `get_console_logs`: ページネーションをサポートしてUnityコンソールからログを取得
+  > **例:** "Unityコンソールから最新の20件のエラーログを表示"
+
+- `save_scene`: 現在のアクティブなシーンを保存（オプションで別名保存可能）
+  > **例:** "現在のシーンを保存" または "シーンを'Assets/Scenes/Level2.unity'として保存"
+
+- `get_scene_info`: 名前、パス、ダーティ状態、ロードされたすべてのシーンを含むアクティブなシーンの情報を取得
+  > **例:** "プロジェクトで現在ロードされているシーンは？"
+
+- `unload_scene`: 階層からシーンをアンロード（シーンアセットは削除しない）
+  > **例:** "階層からUIシーンをアンロード"
+
+- `duplicate_gameobject`: シーン内のGameObjectを複製（オプションで名前変更や親の再設定が可能）
+  > **例:** "Enemyプレハブを5回複製し、Enemy_1からEnemy_5に名前を変更"
+
+- `delete_gameobject`: シーンからGameObjectを削除
+  > **例:** "シーンから古いPlayerオブジェクトを削除"
+
+- `reparent_gameobject`: 階層内のGameObjectの親を変更
+  > **例:** "HealthBarオブジェクトをUI Canvasの子に移動"
+
+- `move_gameobject`: GameObjectを新しい位置に移動（ローカルまたはワールド空間）
+  > **例:** "Playerオブジェクトをワールド空間の位置(10, 0, 5)に移動"
+
+- `rotate_gameobject`: GameObjectを新しい回転に変更（ローカルまたはワールド空間、オイラー角またはクォータニオン）
+  > **例:** "CameraをY軸に45度回転"
+
+- `scale_gameobject`: GameObjectを新しいローカルスケールに変更
+  > **例:** "Enemyオブジェクトを2倍のサイズに拡大"
+
+- `set_transform`: 単一の操作でGameObjectの位置、回転、スケールを設定
+  > **例:** "Cubeの位置を(0, 5, 0)、回転を(0, 90, 0)、スケールを(2, 2, 2)に設定"
+
+- `create_material`: 指定されたシェーダーで新しいマテリアルを作成し、プロジェクトに保存
+  > **例:** "URP Litシェーダーを使用して'EnemyMaterial'という赤いマテリアルを作成"
+
+- `assign_material`: GameObjectのRendererコンポーネントにマテリアルを割り当て
+  > **例:** "'EnemyMaterial'をEnemy GameObjectに割り当て"
+
+- `modify_material`: 既存のマテリアルのプロパティ（色、浮動小数点数、テクスチャ）を変更
+  > **例:** "'EnemyMaterial'の色を青に変更し、メタリックを0.8に設定"
+
+- `get_material_info`: シェーダーとすべてのプロパティを含むマテリアルの詳細情報を取得
+  > **例:** "'PlayerMaterial'のすべてのプロパティを表示"
+
+- `batch_execute`: 単一のバッチリクエストで複数のツール操作を実行し、ラウンドトリップを削減しアトミック操作を可能にする（失敗時のロールバックオプション付き）
+  > **例:** "単一のバッチ操作でEnemy_1からEnemy_10という名前の10個の空のGameObjectを作成"
+
 ### MCPサーバーリソース
 
 - `unity://menu-items`: `execute_menu_item`ツールを容易にするために、Unityエディターで利用可能なすべてのメニュー項目のリストを取得
@@ -110,7 +169,7 @@ MCP Unityは、Unityの`Library/PackedCache`フォルダーをワークスペー
   > **例:** "プロジェクトで利用可能なすべてのテストをリスト"
 
 ## 要件
-- Unity 2022.3以降 - [サーバーをインストール](#install-server)するため
+- Unity 6以降 - [サーバーをインストール](#install-server)するため
 - Node.js 18以降 - [サーバーを起動](#start-server)するため
 - npm 9以降 - [サーバーをデバッグ](#debug-server)するため
 
@@ -381,10 +440,13 @@ Unity 6.2では、以前のUnity Muse（テクスチャやアニメーション�
 <summary><span style="font-size: 1.1em; font-weight: bold;">現在、どのMCPホストとIDEがMCP Unityをサポートしていますか？</span></summary>
 
 MCP Unityは、MCPクライアントとして機能できるAIアシスタントまたは開発環境と連携するように設計されています。エコシステムは成長していますが、現在の既知の統合または互換性のあるプラットフォームには以下が含まれます。
--  Windsurf
 -  Cursor
--  GitHub Copilot
+-  Windsurf
 -  Claude Desktop
+-  Claude Code
+-  Codex CLI
+-  GitHub Copilot
+-  Google Antigravity
 
 </details>
 

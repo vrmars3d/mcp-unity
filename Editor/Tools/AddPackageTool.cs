@@ -1,13 +1,10 @@
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using UnityEngine;
 using UnityEditor;
 using UnityEditor.PackageManager;
 using UnityEditor.PackageManager.Requests;
 using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
-using McpUnity.Tools;
 using McpUnity.Unity;
 using McpUnity.Utils;
 
@@ -223,8 +220,9 @@ namespace McpUnity.Tools
                 return null;
             }
             
-            // Format as file URL
-            string packageUrl = $"file:{path}";
+            // Format as file URL with proper encoding for paths containing spaces
+            string encodedPath = McpUtils.EncodePathForFileUrl(path);
+            string packageUrl = $"file:{encodedPath}";
             
             McpLogger.LogInfo($"Adding package from disk: {packageUrl}");
             

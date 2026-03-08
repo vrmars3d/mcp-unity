@@ -1,19 +1,31 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-using UnityEngine;
 using UnityEditor;
+using UnityEngine;
 using McpUnity.Tools;
 using McpUnity.Resources;
 using McpUnity.Services;
 using McpUnity.Utils;
 using WebSocketSharp.Server;
 using System.IO;
-using System.Diagnostics;
 using System.Net.Sockets;
+using UnityEditor.Callbacks;
 
 namespace McpUnity.Unity
 {
+    /// <summary>
+    /// Custom WebSocket close codes for Unity-specific events.
+    /// Range 4000-4999 is reserved for application use.
+    /// </summary>
+    public static class UnityCloseCode
+    {
+        /// <summary>
+        /// Unity is entering Play mode - clients should use fast polling instead of backoff
+        /// </summary>
+        public const ushort PlayMode = 4001;
+    }
+
     /// <summary>
     /// MCP Unity Server to communicate Node.js MCP server.
     /// Uses WebSockets to communicate with Node.js.
@@ -32,23 +44,35 @@ namespace McpUnity.Unity
         private ConsoleLogsService _consoleLogsService;
 
         /// <summary>
-        /// Static constructor that gets called when Unity loads due to InitializeOnLoad attribute
+        /// Called after every domain reload
         /// </summary>
-        static McpUnityServer()
+        [DidReloadScripts]
+        private static void AfterReload()
         {
-            EditorApplication.delayCall += () => {
-                // Ensure Instance is created and hooks are set up after initial domain load
-                var currentInstance = Instance;
-            };
+            // Skip initialization in batch mode (Unity Cloud Build, CI, headless builds)
+            // This prevents npm commands from hanging the build process
+            if (Application.isBatchMode)
+            {
+                return;
+            }
+
+            // Ensure Instance is created and hooks are set up after initial domain load
+            var currentInstance = Instance;
         }
 
         /// <summary>
-        /// Singleton instance accessor
+        /// Singleton instance accessor. Returns null in batch mode.
         /// </summary>
         public static McpUnityServer Instance
         {
             get
             {
+                // Don't create instance in batch mode to avoid hanging builds
+                if (Application.isBatchMode)
+                {
+                    return null;
+                }
+
                 if (_instance == null)
                 {
                     _instance = new McpUnityServer();
@@ -72,6 +96,14 @@ namespace McpUnity.Unity
         /// </summary>
         private McpUnityServer()
         {
+            // Skip all initialization in batch mode (Unity Cloud Build, CI, headless builds)
+            // The npm install/build commands can hang indefinitely without node.js available
+            if (Application.isBatchMode)
+            {
+                McpLogger.LogInfo("MCP Unity server disabled: Running in batch mode (Unity Cloud Build or CI)");
+                return;
+            }
+
             EditorApplication.quitting -= OnEditorQuitting; // Prevent multiple subscriptions on domain reload
             EditorApplication.quitting += OnEditorQuitting;
 
@@ -117,6 +149,14 @@ namespace McpUnity.Unity
         /// </summary>
         public void StartServer()
         {
+            // Skip starting server if this is a Multiplayer Play Mode clone instance
+            // Only the main editor should run the WebSocket server to avoid port conflicts
+            if (McpUtils.IsMultiplayerPlayModeClone())
+            {
+                McpLogger.LogInfo("Server startup skipped: Running as Multiplayer Play Mode clone instance. Only the main editor runs the MCP server.");
+                return;
+            }
+
             if (IsListening)
             {
                 McpLogger.LogInfo($"Server start requested, but already listening on port {McpUnitySettings.Instance.Port}.");
@@ -145,7 +185,9 @@ namespace McpUnity.Unity
         /// <summary>
         /// Stop the WebSocket server
         /// </summary>
-        public void StopServer()
+        /// <param name="closeCode">Optional custom close code to send to clients before stopping</param>
+        /// <param name="closeReason">Optional reason message for the close</param>
+        public void StopServer(ushort? closeCode = null, string closeReason = null)
         {
             if (!IsListening)
             {
@@ -154,6 +196,12 @@ namespace McpUnity.Unity
 
             try
             {
+                // If a custom close code is provided, close all client connections with that code first
+                if (closeCode.HasValue && _webSocketServer != null)
+                {
+                    CloseAllClients(closeCode.Value, closeReason ?? "Server stopping");
+                }
+
                 _webSocketServer?.Stop();
 
                 McpLogger.LogInfo("WebSocket server stopped");
@@ -167,6 +215,38 @@ namespace McpUnity.Unity
                 _webSocketServer = null;
                 Clients.Clear();
                 McpLogger.LogInfo("WebSocket server stopped and resources cleaned up.");
+            }
+        }
+
+        /// <summary>
+        /// Close all connected clients with a specific close code
+        /// </summary>
+        /// <param name="closeCode">WebSocket close code (4000-4999 for application use)</param>
+        /// <param name="reason">Reason message for the close</param>
+        private void CloseAllClients(ushort closeCode, string reason)
+        {
+            if (_webSocketServer == null)
+            {
+                return;
+            }
+
+            try
+            {
+                var service = _webSocketServer.WebSocketServices["/McpUnity"];
+                if (service?.Sessions != null)
+                {
+                    // Get all active session IDs and close each with the custom code
+                    var sessionIds = new List<string>(service.Sessions.IDs);
+                    foreach (var sessionId in sessionIds)
+                    {
+                        service.Sessions.CloseSession(sessionId, closeCode, reason);
+                    }
+                    McpLogger.LogInfo($"Closed {sessionIds.Count} client connection(s) with code {closeCode}: {reason}");
+                }
+            }
+            catch (Exception ex)
+            {
+                McpLogger.LogError($"Error closing client connections: {ex.Message}");
             }
         }
 
@@ -197,6 +277,13 @@ namespace McpUnity.Unity
             if (string.IsNullOrEmpty(serverPath) || !Directory.Exists(serverPath))
             {
                 McpLogger.LogError($"Server path not found or invalid: {serverPath}. Make sure that MCP Node.js server is installed.");
+                return;
+            }
+
+            // Validate server path and warn about potential issues (spaces, special characters)
+            if (!McpUtils.ValidateServerPath(serverPath))
+            {
+                McpLogger.LogError("Server path validation failed. See previous errors for details.");
                 return;
             }
 
@@ -269,6 +356,68 @@ namespace McpUnity.Unity
             // Register LoadSceneTool
             LoadSceneTool loadSceneTool = new LoadSceneTool();
             _tools.Add(loadSceneTool.Name, loadSceneTool);
+
+            // Register SaveSceneTool
+            SaveSceneTool saveSceneTool = new SaveSceneTool();
+            _tools.Add(saveSceneTool.Name, saveSceneTool);
+
+            // Register GetSceneInfoTool
+            GetSceneInfoTool getSceneInfoTool = new GetSceneInfoTool();
+            _tools.Add(getSceneInfoTool.Name, getSceneInfoTool);
+
+            // Register UnloadSceneTool
+            UnloadSceneTool unloadSceneTool = new UnloadSceneTool();
+            _tools.Add(unloadSceneTool.Name, unloadSceneTool);
+
+            // Register RecompileScriptsTool
+            RecompileScriptsTool recompileScriptsTool = new RecompileScriptsTool();
+            _tools.Add(recompileScriptsTool.Name, recompileScriptsTool);
+
+            // Register GetGameObjectTool
+            GetGameObjectTool getGameObjectTool = new GetGameObjectTool();
+            _tools.Add(getGameObjectTool.Name, getGameObjectTool);
+
+            // Register DuplicateGameObjectTool
+            DuplicateGameObjectTool duplicateGameObjectTool = new DuplicateGameObjectTool();
+            _tools.Add(duplicateGameObjectTool.Name, duplicateGameObjectTool);
+
+            // Register DeleteGameObjectTool
+            DeleteGameObjectTool deleteGameObjectTool = new DeleteGameObjectTool();
+            _tools.Add(deleteGameObjectTool.Name, deleteGameObjectTool);
+
+            // Register ReparentGameObjectTool
+            ReparentGameObjectTool reparentGameObjectTool = new ReparentGameObjectTool();
+            _tools.Add(reparentGameObjectTool.Name, reparentGameObjectTool);
+
+            // Register Transform Tools
+            MoveGameObjectTool moveGameObjectTool = new MoveGameObjectTool();
+            _tools.Add(moveGameObjectTool.Name, moveGameObjectTool);
+
+            RotateGameObjectTool rotateGameObjectTool = new RotateGameObjectTool();
+            _tools.Add(rotateGameObjectTool.Name, rotateGameObjectTool);
+
+            ScaleGameObjectTool scaleGameObjectTool = new ScaleGameObjectTool();
+            _tools.Add(scaleGameObjectTool.Name, scaleGameObjectTool);
+
+            SetTransformTool setTransformTool = new SetTransformTool();
+            _tools.Add(setTransformTool.Name, setTransformTool);
+
+            // Register Material Tools
+            CreateMaterialTool createMaterialTool = new CreateMaterialTool();
+            _tools.Add(createMaterialTool.Name, createMaterialTool);
+
+            AssignMaterialTool assignMaterialTool = new AssignMaterialTool();
+            _tools.Add(assignMaterialTool.Name, assignMaterialTool);
+
+            ModifyMaterialTool modifyMaterialTool = new ModifyMaterialTool();
+            _tools.Add(modifyMaterialTool.Name, modifyMaterialTool);
+
+            GetMaterialInfoTool getMaterialInfoTool = new GetMaterialInfoTool();
+            _tools.Add(getMaterialInfoTool.Name, getMaterialInfoTool);
+
+            // Register BatchExecuteTool (must be registered last as it needs access to other tools)
+            BatchExecuteTool batchExecuteTool = new BatchExecuteTool(this);
+            _tools.Add(batchExecuteTool.Name, batchExecuteTool);
         }
 
         /// <summary>
@@ -322,8 +471,10 @@ namespace McpUnity.Unity
         /// </summary>
         private static void OnEditorQuitting()
         {
+            if (Application.isBatchMode || _instance == null) return;
+
             McpLogger.LogInfo("Editor is quitting. Ensuring server is stopped.");
-            Instance.Dispose();
+            _instance.Dispose();
         }
 
         /// <summary>
@@ -332,9 +483,11 @@ namespace McpUnity.Unity
         /// </summary>
         private static void OnBeforeAssemblyReload()
         {
-            if (Instance.IsListening)
+            if (Application.isBatchMode || _instance == null) return;
+
+            if (_instance.IsListening)
             {
-                Instance.StopServer();
+                _instance.StopServer();
             }
         }
 
@@ -345,9 +498,11 @@ namespace McpUnity.Unity
         /// </summary>
         private static void OnAfterAssemblyReload()
         {
-            if (McpUnitySettings.Instance.AutoStartServer && !Instance.IsListening)
+            if (Application.isBatchMode || _instance == null) return;
+
+            if (McpUnitySettings.Instance.AutoStartServer && !_instance.IsListening)
             {
-                Instance.StartServer();
+                _instance.StartServer();
             }
         }
 
@@ -358,13 +513,15 @@ namespace McpUnity.Unity
         /// <param name="state">The current play mode state change.</param>
         private static void OnPlayModeStateChanged(PlayModeStateChange state)
         {
+            if (Application.isBatchMode || _instance == null) return;
+
             switch (state)
             {
                 case PlayModeStateChange.ExitingEditMode:
-                    // About to enter Play Mode
-                    if (Instance.IsListening)
+                    // About to enter Play Mode - use custom close code so clients use fast polling
+                    if (_instance.IsListening)
                     {
-                        Instance.StopServer();
+                        _instance.StopServer(UnityCloseCode.PlayMode, "Unity entering Play mode");
                     }
                     break;
                 case PlayModeStateChange.EnteredPlayMode:
@@ -373,9 +530,9 @@ namespace McpUnity.Unity
                     break;
                 case PlayModeStateChange.EnteredEditMode:
                     // Returned to Edit Mode
-                    if (!Instance.IsListening && McpUnitySettings.Instance.AutoStartServer)
+                    if (!_instance.IsListening && McpUnitySettings.Instance.AutoStartServer)
                     {
-                        Instance.StartServer();
+                        _instance.StartServer();
                     }
                     break;
             }

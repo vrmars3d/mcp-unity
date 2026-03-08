@@ -6,7 +6,6 @@
 [![](https://img.shields.io/github/stars/CoderGamester/mcp-unity 'Stars')](https://github.com/CoderGamester/mcp-unity/stargazers)
 [![](https://img.shields.io/github/last-commit/CoderGamester/mcp-unity 'Last Commit')](https://github.com/CoderGamester/mcp-unity/commits/main)
 [![](https://img.shields.io/badge/License-MIT-red.svg 'MIT License')](https://opensource.org/licenses/MIT)
-
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/CoderGamester/mcp-unity)](https://archestra.ai/mcp-catalog/codergamester__mcp-unity)
 
 | [🇺🇸English](README.md) | [🇨🇳简体中文](README_zh-CN.md) | [🇯🇵日本語](README-ja.md) |
@@ -43,7 +42,7 @@
      ╚═╝     ╚═╝ ╚═════╝╚═╝              ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝      ╚═╝
 ```
 
-MCP Unity is an implementation of the Model Context Protocol for Unity Editor, allowing AI assistants to interact with your Unity projects. This package provides a bridge between Unity and a Node.js server that implements the MCP protocol, enabling AI agents like Claude, Windsurf, and Cursor to execute operations within the Unity Editor.
+MCP Unity is an implementation of the Model Context Protocol for Unity Editor, allowing AI assistants to interact with your Unity projects. This package provides a bridge between Unity and a Node.js server that implements the MCP protocol, enabling AI agents like Cursor, Windsurf, Claude Code, Codex CLI, GitHub Copilot, and Google Antigravity to execute operations within the Unity Editor.
 
 <a href="https://glama.ai/mcp/servers/@CoderGamester/mcp-unity">
   <img width="400" height="200" src="https://glama.ai/mcp/servers/@CoderGamester/mcp-unity/badge" alt="Unity MCP server" />
@@ -53,7 +52,7 @@ MCP Unity is an implementation of the Model Context Protocol for Unity Editor, a
 
 ### IDE Integration - Package Cache Access
 
-MCP Unity provides automatic integration with VSCode-like IDEs (Visual Studio Code, Cursor, Windsurf) by adding the Unity `Library/PackedCache` folder to your workspace. This feature:
+MCP Unity provides automatic integration with VSCode-like IDEs (Visual Studio Code, Cursor, Windsurf, Google Antigravity) by adding the Unity `Library/PackedCache` folder to your workspace. This feature:
 
 - Improves code intelligence for Unity packages
 - Enables better autocompletion and type information for Unity packages
@@ -93,6 +92,69 @@ The following tools are available for manipulating and querying Unity scenes and
 - `create_prefab`: Creates a prefab with optional MonoBehaviour script and serialized field values
   > **Example prompt:** "Create a prefab named 'Player' from the 'PlayerController' script"
 
+- `create_scene`: Creates a new scene and saves it to the specified path
+  > **Example prompt:** "Create a new scene called 'Level1' in the Scenes folder"
+
+- `load_scene`: Loads a scene by path or name, with optional additive loading
+  > **Example prompt:** "Load the MainMenu scene"
+
+- `delete_scene`: Deletes a scene by path or name and removes it from Build Settings
+  > **Example prompt:** "Delete the old TestScene from my project"
+
+- `get_gameobject`: Gets detailed information about a specific GameObject including all components
+  > **Example prompt:** "Get the details of the Player GameObject"
+
+- `get_console_logs`: Retrieves logs from the Unity console with pagination support
+  > **Example prompt:** "Show me the last 20 error logs from the Unity console"
+
+- `recompile_scripts`: Recompiles all scripts in the Unity project
+  > **Example prompt:** "Recompile scripts in my Unity project"
+
+- `save_scene`: Saves the current active scene, with optional Save As to a new path
+  > **Example prompt:** "Save the current scene" or "Save the scene as 'Assets/Scenes/Level2.unity'"
+
+- `get_scene_info`: Gets information about the active scene including name, path, dirty state, and all loaded scenes
+  > **Example prompt:** "What scenes are currently loaded in my project?"
+
+- `unload_scene`: Unloads a scene from the hierarchy (does not delete the scene asset)
+  > **Example prompt:** "Unload the UI scene from the hierarchy"
+
+- `duplicate_gameobject`: Duplicates a GameObject in the scene with optional renaming and reparenting
+  > **Example prompt:** "Duplicate the Enemy prefab 5 times and rename them Enemy_1 through Enemy_5"
+
+- `delete_gameobject`: Deletes a GameObject from the scene
+  > **Example prompt:** "Delete the old Player object from the scene"
+
+- `reparent_gameobject`: Changes the parent of a GameObject in the hierarchy
+  > **Example prompt:** "Move the HealthBar object to be a child of the UI Canvas"
+
+- `move_gameobject`: Moves a GameObject to a new position (local or world space)
+  > **Example prompt:** "Move the Player object to position (10, 0, 5) in world space"
+
+- `rotate_gameobject`: Rotates a GameObject to a new rotation (local or world space, Euler angles or quaternion)
+  > **Example prompt:** "Rotate the Camera 45 degrees on the Y axis"
+
+- `scale_gameobject`: Scales a GameObject to a new local scale
+  > **Example prompt:** "Scale the Enemy object to twice its size"
+
+- `set_transform`: Sets position, rotation, and scale of a GameObject in a single operation
+  > **Example prompt:** "Set the Cube's position to (0, 5, 0), rotation to (0, 90, 0), and scale to (2, 2, 2)"
+
+- `create_material`: Creates a new material with specified shader and saves it to the project
+  > **Example prompt:** "Create a red material called 'EnemyMaterial' using the URP Lit shader"
+
+- `assign_material`: Assigns a material to a GameObject's Renderer component
+  > **Example prompt:** "Assign the 'EnemyMaterial' to the Enemy GameObject"
+
+- `modify_material`: Modifies properties of an existing material (colors, floats, textures)
+  > **Example prompt:** "Change the color of 'EnemyMaterial' to blue and set metallic to 0.8"
+
+- `get_material_info`: Gets detailed information about a material including shader and all properties
+  > **Example prompt:** "Show me all the properties of the 'PlayerMaterial'"
+
+- `batch_execute`: Executes multiple tool operations in a single batch request, reducing round-trips and enabling atomic operations with optional rollback on failure
+  > **Example prompt:** "Create 10 empty GameObjects named Enemy_1 through Enemy_10 in a single batch operation"
+
 ### MCP Server Resources
 
 - `unity://menu-items`: Retrieves a list of all available menu items in the Unity Editor to facilitate `execute_menu_item` tool
@@ -117,21 +179,18 @@ The following tools are available for manipulating and querying Unity scenes and
   > **Example prompt:** "List all available tests in my Unity project"
 
 ## Requirements
-- Unity 2022.3 or later - to [install the server](#install-server)
+- Unity 6 or later - to [install the server](#install-server)
 - Node.js 18 or later - to [start the server](#start-server)
 - npm 9 or later - to [debug the server](#debug-server)
 
-> [!IMPORTANT]
-> **Project Path Cannot Contain Spaces**
+> [!NOTE]
+> **Project Paths with Spaces**
 >
-> It is crucial that the file path to your Unity project **does not contain any spaces**.
-> If your project path includes spaces, the MCP Client (e.g., Cursor, Claude, Windsurf) will fail to connect to the MCP Unity server.
+> MCP Unity supports project paths containing spaces. However, if you experience connection issues, try moving your project to a path without spaces as a troubleshooting step.
 >
 > **Examples:**
-> -   ✅ **Works:** `C:\Users\YourUser\Documents\UnityProjects\MyAwesomeGame`
-> -   ❌ **Fails:** `C:\Users\Your User\Documents\Unity Projects\My Awesome Game`
->
-> Please ensure your project is located in a path without spaces before proceeding with the installation.
+> -   ✅ **Recommended:** `C:\Users\YourUser\Documents\UnityProjects\MyAwesomeGame`
+> -   ✅ **Supported:** `C:\Users\Your User\Documents\Unity Projects\My Awesome Game`
 
 ## <a name="install-server"></a>Installation
 
@@ -199,9 +258,11 @@ Installing this MCP Unity Server is a multi-step process:
 <details>
 <summary><span style="font-size: 1.1em; font-weight: bold;">Option 2: Configure Manually</span></summary>
 
-Open the MCP configuration file of your AI client (e.g. claude_desktop_config.json in Claude Desktop) and copy the following text:
+Open the MCP configuration file of your AI client and add the MCP Unity server configuration:
 
 > Replace `ABSOLUTE/PATH/TO` with the absolute path to your MCP Unity installation or just copy the text from the Unity Editor MCP Server window (Tools > MCP Unity > Server Window).
+
+**For JSON-based clients** (Cursor, Windsurf, Claude Code, GitHub Copilot, etc.):
 
 ```json
 {
@@ -216,13 +277,21 @@ Open the MCP configuration file of your AI client (e.g. claude_desktop_config.js
 }
 ```
 
+**For Codex CLI** (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.mcp-unity]
+command = "node"
+args = ["ABSOLUTE/PATH/TO/mcp-unity/Server~/build/index.js"]
+```
+
 </details>
 
 ## <a name="start-server"></a>Start Unity Editor MCP Server
 1. Open the Unity Editor
 2. Navigate to Tools > MCP Unity > Server Window
 3. Click "Start Server" to start the WebSocket server
-4. Open Claude Desktop or your AI Coding IDE (e.g. Cursor IDE, Windsurf IDE, etc.) and start executing Unity tools
+4. Open your AI Coding IDE (e.g. Cursor, Windsurf, Claude Code, Codex CLI, GitHub Copilot, Google Antigravity, etc.) and start executing Unity tools
 
 ![connect](https://github.com/user-attachments/assets/2e266a8b-8ba3-4902-b585-b220b11ab9a2)
 
@@ -391,10 +460,13 @@ Unity 6.2 is set to introduce new built-in AI tools, including the previous Unit
 <summary><span style="font-size: 1.1em; font-weight: bold;">What MCP hosts and IDEs currently support MCP Unity?</span></summary>
 
 MCP Unity is designed to work with any AI assistant or development environment that can act as an MCP client. The ecosystem is growing, but current known integrations or compatible platforms include:
--  Windsurf
 -  Cursor
--  GitHub Copilot
+-  Windsurf
 -  Claude Desktop
+-  Claude Code
+-  Codex CLI
+-  GitHub Copilot
+-  Google Antigravity
 
 </details>
 
@@ -447,6 +519,20 @@ This error occurs because the bridge connection is lost when the domain reloads 
 
 </details>
 
+<details>
+<summary><span style="font-size: 1.1em; font-weight: bold;">Why do some clients fail with <code>KeyError: 'position'</code> during tool initialization?</span></summary>
+
+Some MCP clients may fail while parsing tool schemas when they contain local JSON pointer references such as `#/properties/position`.
+
+MCP Unity avoids this by registering transform tool inputs (`set_transform`, `move_gameobject`, `rotate_gameobject`, `scale_gameobject`) with fresh nested vector schemas per field, so the generated schema does not rely on local `#/properties/...` references.
+
+If you still see this error:
+- update your MCP client to the latest version,
+- rebuild the Node server (`cd Server~ && npm run build`),
+- confirm your package version includes this compatibility fix.
+
+</details>
+
 ## Troubleshooting: WSL2 (Windows 11) networking
 
 When running the MCP (Node.js) server inside WSL2 while Unity runs on Windows 11, connecting to `ws://localhost:8090/McpUnity` may fail with `ECONNREFUSED`.
@@ -490,6 +576,27 @@ npm i -g wscat
 wscat -c ws://localhost:8090/McpUnity
 # Or using the Windows host IP
 wscat -c ws://$UNITY_HOST:8090/McpUnity
+```
+
+## Running Tests
+
+### C# Tests (Unity)
+Run tests using Unity's Test Runner:
+1. Open Unity Editor
+2. Navigate to Window > General > Test Runner
+3. Select "EditMode" tab
+4. Click "Run All" to execute all tests
+
+### TypeScript Tests (Server)
+Run tests using Jest:
+```bash
+cd Server~
+npm test
+```
+
+To run tests in watch mode:
+```bash
+npm run test:watch
 ```
 
 ## Support & Feedback
